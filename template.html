@@ -97,7 +97,7 @@ body.tap #hit{pointer-events:none}
     <div style="display:flex;gap:16px;align-items:center"><span class="clock" id="clock"></span><button class="fs" id="fsBtn" type="button">Full screen</button></div>
   </div>
   <div class="rows" id="rows" role="list"></div>
-  <div class="keys touch-only"><span>Tap: what's playing, with Mute</span><span>Two-finger tap: this guide</span><span>Swipe left or right: change channel</span></div>
+  <div class="keys touch-only"><span>Tap: what's playing, with Mute</span><span>Two-finger tap: open or close this guide</span><span>Swipe left or right: change channel</span></div>
   <div class="keys key-only"><span><kbd>↑</kbd><kbd>↓</kbd> choose</span><span><kbd>Enter</kbd> tune in</span><span><kbd>←</kbd><kbd>→</kbd> or <kbd>1</kbd>–<kbd>8</kbd> change channel</span><span><kbd>G</kbd> or click: guide</span><span><kbd>I</kbd> what's on</span><span><kbd>F</kbd> full screen</span><span><kbd>M</kbd> mute</span></div>
   <p class="foot">Performances by the Netherlands Bach Society, from their free <a href="https://www.bachvereniging.nl/en/allofbach">All of Bach</a> project, played through YouTube. Catalogue snapshot: __SNAPSHOT__.</p>
 </section>
@@ -173,6 +173,12 @@ $('hit').addEventListener('touchend',e=>{if(e.touches.length||!t0)return;e.preve
   if(Math.abs(dx)>60&&Math.abs(dx)>1.5*Math.abs(dy)){tune(chi+(dx<0?1:-1));return}
   if(Math.abs(dx)<20&&Math.abs(dy)<20){$('lower').classList.contains('on')?hideLower():showLower()}});
 $('hit').addEventListener('touchcancel',()=>{t0=null});
+// a two-finger tap on the guide closes it again (one finger still scrolls and picks channels)
+let g0=null,gMax=0;
+$('guide').addEventListener('touchstart',e=>{if(e.touches.length===e.changedTouches.length){g0={x:e.touches[0].clientX,y:e.touches[0].clientY};gMax=0}gMax=Math.max(gMax,e.touches.length)},{passive:true});
+$('guide').addEventListener('touchend',e=>{if(e.touches.length||!g0)return;const p=e.changedTouches[0],moved=Math.abs(p.clientX-g0.x)+Math.abs(p.clientY-g0.y),n=gMax;g0=null;
+  if(n>=2&&moved<40&&chi>=0){e.preventDefault();guide(false)}});
+$('guide').addEventListener('touchcancel',()=>{g0=null});
 $('guide').addEventListener('click',e=>{if(e.target.id==='guide'&&chi>=0)guide(false)});
 function fullscreen(){const d=document,el=d.documentElement;try{if(d.fullscreenElement||d.webkitFullscreenElement){(d.exitFullscreen||d.webkitExitFullscreen).call(d)}else{const p=(el.requestFullscreen||el.webkitRequestFullscreen).call(el);if(p&&p.catch)p.catch(()=>toast('Full screen is not available here'))}}catch(e){toast('Full screen is not available here')}}
 $('fsBtn').addEventListener('click',fullscreen);
