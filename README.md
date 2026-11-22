@@ -28,7 +28,7 @@ YouTube may show ads before a piece. If a video doesn't start on its own, a smal
 **On a phone or tablet**
 - Tap a channel in the guide to tune in
 - One-finger tap on the picture: what's playing, with **Mute** and **Guide** buttons
-- Two-finger tap: channel guide
+- Two-finger tap: open or close the channel guide
 - Swipe left or right: change channel
 
 **On a computer**
