@@ -29,12 +29,21 @@ body.idle{cursor:none}
 #hit{position:fixed;inset:0;z-index:2}
 .serif{font-family:"Cormorant Garamond",Georgia,serif}
 #bug{position:fixed;top:max(24px,env(safe-area-inset-top));right:max(28px,env(safe-area-inset-right));z-index:3;font-size:13px;font-weight:600;letter-spacing:.02em;opacity:.55;transition:opacity .6s;display:flex;gap:8px;align-items:center;text-shadow:0 1px 6px #000}
+#bug[hidden]{display:none}
 #bug b{background:var(--acc);color:#fff;border-radius:3px;padding:1px 6px}
-#lower{position:fixed;left:0;right:0;bottom:0;z-index:3;padding:80px max(5vw,20px) 40px;background:linear-gradient(transparent,rgba(0,0,0,.78));opacity:0;transform:translateY(12px);transition:opacity .8s,transform .8s;pointer-events:none}
+#lower{position:fixed;left:0;right:0;bottom:0;z-index:3;padding:80px max(5vw,20px,env(safe-area-inset-right)) max(40px,calc(env(safe-area-inset-bottom) + 20px)) max(5vw,20px,env(safe-area-inset-left));background:linear-gradient(transparent,rgba(0,0,0,.78));opacity:0;transform:translateY(12px);transition:opacity .8s,transform .8s;pointer-events:none}
 #lower.on{opacity:1;transform:none}
 #lower .ch{font-size:13px;color:var(--acc);font-weight:600}
 #lower .work{font-size:clamp(28px,4vw,50px);line-height:1.05;margin:4px 0 6px;text-wrap:balance}
 #lower .who{color:var(--dim);font-size:16px}
+#lower .ctl{display:flex;gap:10px;margin-top:16px}
+#lower .ctl button{font:inherit;font-size:15px;font-weight:500;color:var(--ink);background:rgba(10,9,8,.6);border:1px solid rgba(242,237,227,.35);border-radius:999px;padding:10px 20px;min-height:44px;min-width:88px;cursor:pointer}
+#lower .ctl button:focus-visible{outline:2px solid var(--ink)}
+#lower .ctl button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+#lower.on .ctl{pointer-events:auto}
+#hit{touch-action:none}
+.touch-only{display:none}
+@media(hover:none) and (pointer:coarse){.touch-only{display:inline}.key-only{display:none}}
 #guide{position:fixed;inset:0;z-index:4;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);overflow:auto;-webkit-overflow-scrolling:touch;padding:max(clamp(24px,4vw,56px),env(safe-area-inset-top)) max(5vw,16px,env(safe-area-inset-right)) max(32px,env(safe-area-inset-bottom)) max(5vw,16px,env(safe-area-inset-left));opacity:0;visibility:hidden;transition:opacity .35s,visibility .35s}
 #guide.on{opacity:1;visibility:visible}
 .top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:baseline;justify-content:space-between;max-width:1240px;margin:0 auto 24px}
@@ -76,7 +85,7 @@ body.tap #hit{pointer-events:none}
 <div id="stage"><div id="player"></div></div>
 <div id="hit" aria-hidden="true"></div>
 <div id="bug" hidden><b id="bugNum"></b><span id="bugName"></span></div>
-<div id="lower"><div class="ch" id="lCh"></div><div class="work serif" id="lWork"></div><div class="who" id="lWho"></div></div>
+<div id="lower"><div class="ch" id="lCh"></div><div class="work serif" id="lWork"></div><div class="who" id="lWho"></div><div class="ctl"><button id="muteBtn" type="button">Mute</button><button id="guideBtn" type="button">Guide</button></div></div>
 <div id="toast"></div>
 <button id="sound" type="button" hidden>Not playing? Tap the video to start it · open guide</button>
 <section id="guide" class="on" aria-label="Channel guide">
@@ -88,7 +97,8 @@ body.tap #hit{pointer-events:none}
     <div style="display:flex;gap:16px;align-items:center"><span class="clock" id="clock"></span><button class="fs" id="fsBtn" type="button">Full screen</button></div>
   </div>
   <div class="rows" id="rows" role="list"></div>
-  <div class="keys"><span><kbd>↑</kbd><kbd>↓</kbd> choose</span><span><kbd>Enter</kbd> tune in</span><span><kbd>←</kbd><kbd>→</kbd> or <kbd>1</kbd>–<kbd>8</kbd> change channel</span><span><kbd>G</kbd> or click: guide</span><span><kbd>I</kbd> what's on</span><span><kbd>F</kbd> full screen</span><span><kbd>M</kbd> mute</span></div>
+  <div class="keys touch-only"><span>Tap: what's playing, with Mute</span><span>Two-finger tap: this guide</span><span>Swipe left or right: change channel</span></div>
+  <div class="keys key-only"><span><kbd>↑</kbd><kbd>↓</kbd> choose</span><span><kbd>Enter</kbd> tune in</span><span><kbd>←</kbd><kbd>→</kbd> or <kbd>1</kbd>–<kbd>8</kbd> change channel</span><span><kbd>G</kbd> or click: guide</span><span><kbd>I</kbd> what's on</span><span><kbd>F</kbd> full screen</span><span><kbd>M</kbd> mute</span></div>
   <p class="foot">Performances by the Netherlands Bach Society, from their free <a href="https://www.bachvereniging.nl/en/allofbach">All of Bach</a> project, played through YouTube. Catalogue snapshot: 22 November 2026.</p>
 </section>
 <script>
@@ -116,7 +126,6 @@ let player,ready=false,cur=null,chi=-1,sel=0,lowerT,toastT;
 window.onYouTubeIframeAPIReady=()=>{player=new YT.Player('player',{playerVars:{autoplay:1,controls:0,rel:0,playsinline:1,iv_load_policy:3,disablekb:1,fs:0,cc_load_policy:0,origin:location.origin},events:{onReady:()=>{ready=true;if(pending!==null){const p=pending;pending=null;tune(p)}},onStateChange:e=>{if(e.data===YT.PlayerState.ENDED)advance();if(e.data===YT.PlayerState.PLAYING){tapMode(false);if(cur&&!cur.shown){cur.shown=true;showLower()}}},onError:()=>{if(cur){bad.add(cur.v);advance(true)}}}})};
 let pending=null;
 function play(s){let tries=0;const c=CH[chi];while(bad.has(s.v)&&tries++<c.items.length)s=after(c,s);cur={...s,shown:false};const off=s.off<20?0:Math.floor(s.off);player.loadVideoById({videoId:V[s.v][0],startSeconds:off});paintBug();paint();watch()}
-// Safari blocks autoplay with sound in embedded players: fall back to muted playback and offer sound on the next click.
 // If nothing is playing after a few seconds (autoplay blocked, or an ad waiting), let taps reach YouTube's own player.
 let watchT,needSound=false;
 function watch(){clearTimeout(watchT);watchT=setTimeout(()=>{const st=player.getPlayerState();if(st!==1&&st!==3)tapMode(true)},4000)}
@@ -125,7 +134,10 @@ function soundOn(){player.unMute();if(player.getPlayerState()!==1)player.playVid
 function tune(i){i=(i+CH.length)%CH.length;if(!ready){pending=i;return}chi=i;store.set('bach247.ch',String(i));play(at(CH[i],now()))}
 function advance(skip){const c=CH[chi];const s=at(c,now());play(!skip&&s.v!==cur.v?s:after(c,cur))}
 function paintBug(){const c=CH[chi];$('bug').hidden=false;$('bugNum').textContent=chi+1;$('bugName').textContent=c.name}
-function showLower(){if(!cur)return;const t=parse(V[cur.v][2]);$('lCh').textContent=(chi+1)+'  '+CH[chi].name;$('lWork').textContent=t.work;$('lWho').textContent=t.who?t.who+' · Netherlands Bach Society':'Netherlands Bach Society';$('lower').classList.add('on');$('bug').style.opacity=1;clearTimeout(lowerT);lowerT=setTimeout(()=>{$('lower').classList.remove('on');$('bug').style.opacity=''},9000)}
+function showLower(){if(!cur)return;const t=parse(V[cur.v][2]);$('lCh').textContent=(chi+1)+'  '+CH[chi].name;$('lWork').textContent=t.work;$('lWho').textContent=t.who?t.who+' · Netherlands Bach Society':'Netherlands Bach Society';paintMute();$('lower').classList.add('on');$('bug').style.opacity=1;clearTimeout(lowerT);lowerT=setTimeout(hideLower,9000)}
+function hideLower(){clearTimeout(lowerT);$('lower').classList.remove('on');$('bug').style.opacity='';if($('lower').contains(document.activeElement))document.activeElement.blur()}
+function paintMute(){const m=player&&player.isMuted&&player.isMuted();$('muteBtn').textContent=m?'Sound on':'Mute';$('muteBtn').classList.toggle('on',!!m)}
+function toggleMute(){if(!player||!player.isMuted)return;if(player.isMuted()){player.unMute();toast('Sound on')}else{player.mute();toast('Muted')}setTimeout(paintMute,150)}
 function toast(m){$('toast').textContent=m;$('toast').classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>$('toast').classList.remove('on'),1600)}
 // ---------- guide ----------
 const fmt=s=>{s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?h+' h '+m+' min':m?m+' min':'<1 min'};
@@ -136,12 +148,19 @@ function paint(){const t=now();rowEls.forEach((r,i)=>{const c=CH[i];let s=at(c,t
 setInterval(()=>{if($('guide').classList.contains('on'))paint()},1000);
 function guide(on){$('guide').classList.toggle('on',on);if(on){sel=chi<0?sel:chi;paint();rowEls[sel].focus({preventScroll:false})}}
 rowEls.forEach(r=>r.addEventListener('click',()=>{tune(+r.dataset.i);guide(false)}));
-$('hit').addEventListener('click',()=>{if(needSound)soundOn();else guide(true)});
+// mouse: click the picture for the guide
+$('hit').addEventListener('click',()=>guide(true));
 $('sound').addEventListener('click',e=>{e.stopPropagation();guide(true)});
-// phone: swipe left/right on the picture to change channel
-let tx=null,ty=null;
-$('hit').addEventListener('touchstart',e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY},{passive:true});
-$('hit').addEventListener('touchend',e=>{if(tx===null||chi<0)return;const dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;tx=null;if(Math.abs(dx)>60&&Math.abs(dx)>1.5*Math.abs(dy)){e.preventDefault();tune(chi+(dx<0?1:-1))}});
+$('muteBtn').addEventListener('click',e=>{e.stopPropagation();toggleMute();showLower()});
+$('guideBtn').addEventListener('click',e=>{e.stopPropagation();hideLower();guide(true)});
+// touch: one-finger tap = what's playing (with Mute), two-finger tap = guide, swipe = change channel
+let t0=null,maxT=0;
+$('hit').addEventListener('touchstart',e=>{if(e.touches.length===e.changedTouches.length){t0={x:e.touches[0].clientX,y:e.touches[0].clientY,t:Date.now()};maxT=0}maxT=Math.max(maxT,e.touches.length)},{passive:true});
+$('hit').addEventListener('touchend',e=>{if(e.touches.length||!t0)return;e.preventDefault();const p=e.changedTouches[0],dx=p.clientX-t0.x,dy=p.clientY-t0.y,n=maxT;t0=null;
+  if(chi<0||n>=2){hideLower();guide(true);return}
+  if(Math.abs(dx)>60&&Math.abs(dx)>1.5*Math.abs(dy)){tune(chi+(dx<0?1:-1));return}
+  if(Math.abs(dx)<20&&Math.abs(dy)<20){$('lower').classList.contains('on')?hideLower():showLower()}});
+$('hit').addEventListener('touchcancel',()=>{t0=null});
 $('guide').addEventListener('click',e=>{if(e.target.id==='guide'&&chi>=0)guide(false)});
 function fullscreen(){const d=document,el=d.documentElement;try{if(d.fullscreenElement||d.webkitFullscreenElement){(d.exitFullscreen||d.webkitExitFullscreen).call(d)}else{const p=(el.requestFullscreen||el.webkitRequestFullscreen).call(el);if(p&&p.catch)p.catch(()=>toast('Full screen is not available here'))}}catch(e){toast('Full screen is not available here')}}
 $('fsBtn').addEventListener('click',fullscreen);
@@ -154,7 +173,7 @@ document.addEventListener('keydown',e=>{const g=$('guide').classList.contains('o
   if(k==='g'||k==='G'){if(!g||chi>=0)guide(!g);return}
   if(k==='i'||k==='I'){showLower();return}
   if(k==='f'||k==='F'){fullscreen();return}
-  if((k==='m'||k==='M')&&player){if(needSound){soundOn();toast('Sound on')}else if(player.isMuted()){player.unMute();toast('Sound on')}else{player.mute();toast('Muted')}return}
+  if((k==='m'||k==='M')&&player){toggleMute();return}
   if(k===' '&&!g&&player){e.preventDefault();const st=player.getPlayerState();if(st===1){player.pauseVideo();toast('Paused')}else{player.playVideo();toast('Playing')}}
 });
 let idleT;document.addEventListener('mousemove',()=>{document.body.classList.remove('idle');clearTimeout(idleT);idleT=setTimeout(()=>document.body.classList.add('idle'),3000)});
