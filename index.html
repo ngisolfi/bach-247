@@ -123,7 +123,7 @@ function at(c,t){const el=t-EPOCH,cyc=Math.floor(el/c.total);let pos=el-cyc*c.to
 function after(c,s){let k=s.k+1,cyc=s.cyc;const o=order(c,cyc);if(k>=o.length){k=0;cyc++}return{cyc,k,v:order(c,cyc)[k],off:0}}
 // ---------- player ----------
 let player,ready=false,cur=null,chi=-1,sel=0,lowerT,toastT;
-window.onYouTubeIframeAPIReady=()=>{player=new YT.Player('player',{playerVars:{autoplay:1,controls:0,rel:0,playsinline:1,iv_load_policy:3,disablekb:1,fs:0,cc_load_policy:0,origin:location.origin},events:{onReady:()=>{ready=true;if(pending!==null){const p=pending;pending=null;tune(p)}},onStateChange:e=>{if(e.data===YT.PlayerState.ENDED)advance();if(e.data===YT.PlayerState.PLAYING){tapMode(false);if(cur&&!cur.shown){cur.shown=true;showLower()}}},onError:()=>{if(cur){bad.add(cur.v);advance(true)}}}})};
+window.onYouTubeIframeAPIReady=()=>{player=new YT.Player('player',{playerVars:{autoplay:1,controls:0,rel:0,playsinline:1,iv_load_policy:3,disablekb:1,fs:0,cc_load_policy:0,origin:location.origin},events:{onReady:()=>{ready=true;if(pending!==null){const p=pending;pending=null;tune(p)}},onStateChange:e=>{if(e.data===YT.PlayerState.ENDED)advance();if(e.data===YT.PlayerState.PLAYING){tapMode(false);syncSoon();if(cur&&!cur.shown){cur.shown=true;showLower()}}},onError:()=>{if(cur){bad.add(cur.v);advance(true)}}}})};
 let pending=null;
 function play(s){let tries=0;const c=CH[chi];while(bad.has(s.v)&&tries++<c.items.length)s=after(c,s);cur={...s,shown:false};const off=s.off<20?0:Math.floor(s.off);player.loadVideoById({videoId:V[s.v][0],startSeconds:off});paintBug();paint();watch()}
 // If nothing is playing after a few seconds (autoplay blocked, or an ad waiting), let taps reach YouTube's own player.
@@ -131,6 +131,18 @@ let watchT,needSound=false;
 function watch(){clearTimeout(watchT);watchT=setTimeout(()=>{const st=player.getPlayerState();if(st!==1&&st!==3)tapMode(true)},4000)}
 function tapMode(on){needSound=false;document.body.classList.toggle('tap',on);$('sound').hidden=!on}
 function soundOn(){player.unMute();if(player.getPlayerState()!==1)player.playVideo();tapMode(false)}
+// Keep every device on the broadcast clock: after ads, tap-to-start, pauses or a backgrounded app,
+// the player can start late or from 0:00 (iOS sometimes ignores startSeconds). Check and jump back on schedule.
+let syncT;
+function syncSoon(){clearTimeout(syncT);syncT=setTimeout(sync,1200)}
+function sync(){if(!cur||chi<0||!player||player.getPlayerState()!==1)return;const c=CH[chi],s=at(c,now()),pos=player.getCurrentTime()||0;
+  if(s.v===cur.v){const target=s.off<20?0:s.off;if(Math.abs(pos-target)>6&&!(s.off<20&&pos<s.off+6)){player.seekTo(target,true)}return}
+  // the schedule has moved on to a later piece: join it, unless this one is nearly over anyway
+  // (if the clock is still on the previous piece because this one began a little early, leave it alone)
+  const ahead=s.cyc>cur.cyc||(s.cyc===cur.cyc&&s.k>cur.k);
+  if(ahead&&V[cur.v][1]-pos>15)play(s)}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncSoon()});
+window.addEventListener('pageshow',()=>syncSoon());
 function tune(i){i=(i+CH.length)%CH.length;if(!ready){pending=i;return}chi=i;store.set('bach247.ch',String(i));play(at(CH[i],now()))}
 function advance(skip){const c=CH[chi];const s=at(c,now());play(!skip&&s.v!==cur.v?s:after(c,cur))}
 function paintBug(){const c=CH[chi];$('bug').hidden=false;$('bugNum').textContent=chi+1;$('bugName').textContent=c.name}
