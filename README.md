@@ -54,4 +54,15 @@ Open the page on an iPhone, iPad or Mac, tune in, then use **Control Center → 
 
 ## Keeping the catalogue current
 
-The Bach Society releases a new recording roughly every two weeks. The channels use a snapshot of their YouTube genre playlists taken on 22 November 2026. To refresh it, ask Claude to re-collect the playlists and rebuild `index.html`.
+The Bach Society releases a new recording roughly every two weeks. A GitHub Actions workflow (`.github/workflows/refresh.yml`) keeps the channels up to date on its own:
+
+- **Every Monday** it fetches the Bach Society's genre playlists through the YouTube Data API, keeping only public, embeddable videos, and rebuilds `index.html`. If anything changed, it commits the result. A backup run on the 15th of each month covers any skipped week.
+- **It publishes the site** after each refresh and on every push to `main`.
+- **It never publishes a broken catalogue.** If the API fails, or more than 10% of the recordings disappear at once, the run stops and the site keeps last week's version. GitHub emails you when a run fails.
+- **It keeps itself switched on.** GitHub pauses scheduled workflows after 60 days without activity; each run re-enables the workflow, which resets that clock.
+
+Each update changes loop lengths, so every channel's lineup shifts. Everyone stays in step because every copy loads the same new page. New uploads that aren't yet in a genre playlist appear only on All of Bach.
+
+To refresh by hand, open the **Actions** tab, choose **Refresh catalogue and publish**, then **Run workflow**.
+
+**Files:** `scripts/channels.py` defines the channels and their playlists. `scripts/fetch_playlists.py` reads YouTube into `data/playlists.json`, and `scripts/build.py` turns that and `template.html` into `index.html`. The workflow needs a YouTube Data API key stored as the repository secret `YT_API_KEY`.
