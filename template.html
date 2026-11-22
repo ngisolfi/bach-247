@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bach 24/7</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Bach 24/7">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE  quiet, late-night broadcast; the music is the show
+   IDEA   a TV channel guide for one composer
+   PICTURE the video itself, edge to edge; guide floats over it
+   COLOUR black stage, warm paper-white type, one vermilion accent
+   TYPE   Cormorant Garamond for works, Inter for the machinery */
+:root{--ink:#f2ede3;--dim:rgba(242,237,227,.62);--acc:#e0533a;--glass:rgba(10,9,8,.84)}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;height:100%;background:#000;color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;overflow:hidden}
+body.idle{cursor:none}
+#stage{position:fixed;inset:0}
+#stage iframe,#player{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}
+#hit{position:fixed;inset:0;z-index:2}
+.serif{font-family:"Cormorant Garamond",Georgia,serif}
+#bug{position:fixed;top:max(24px,env(safe-area-inset-top));right:max(28px,env(safe-area-inset-right));z-index:3;font-size:13px;font-weight:600;letter-spacing:.02em;opacity:.55;transition:opacity .6s;display:flex;gap:8px;align-items:center;text-shadow:0 1px 6px #000}
+#bug[hidden]{display:none}
+#bug b{background:var(--acc);color:#fff;border-radius:3px;padding:1px 6px}
+#lower{position:fixed;left:0;right:0;bottom:0;z-index:3;padding:80px max(5vw,20px,env(safe-area-inset-right)) max(40px,calc(env(safe-area-inset-bottom) + 20px)) max(5vw,20px,env(safe-area-inset-left));background:linear-gradient(transparent,rgba(0,0,0,.78));opacity:0;transform:translateY(12px);transition:opacity .8s,transform .8s;pointer-events:none}
+#lower.on{opacity:1;transform:none}
+#lower .ch{font-size:13px;color:var(--acc);font-weight:600}
+#lower .work{font-size:clamp(28px,4vw,50px);line-height:1.05;margin:4px 0 6px;text-wrap:balance}
+#lower .who{color:var(--dim);font-size:16px}
+#lower .ctl{display:flex;gap:10px;margin-top:16px}
+#lower .ctl button{font:inherit;font-size:15px;font-weight:500;color:var(--ink);background:rgba(10,9,8,.6);border:1px solid rgba(242,237,227,.35);border-radius:999px;padding:10px 20px;min-height:44px;min-width:88px;cursor:pointer}
+#lower .ctl button:focus-visible{outline:2px solid var(--ink)}
+#lower .ctl button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+#lower.on .ctl{pointer-events:auto}
+#hit{touch-action:none}
+.touch-only{display:none}
+@media(hover:none) and (pointer:coarse){.touch-only{display:inline}.key-only{display:none}}
+#guide{position:fixed;inset:0;z-index:4;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);overflow:auto;-webkit-overflow-scrolling:touch;padding:max(clamp(24px,4vw,56px),env(safe-area-inset-top)) max(5vw,16px,env(safe-area-inset-right)) max(32px,env(safe-area-inset-bottom)) max(5vw,16px,env(safe-area-inset-left));opacity:0;visibility:hidden;transition:opacity .35s,visibility .35s}
+#guide.on{opacity:1;visibility:visible}
+.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:baseline;justify-content:space-between;max-width:1240px;margin:0 auto 24px}
+.top h1{margin:0;font-size:clamp(34px,5vw,52px);line-height:1.05;font-weight:600}
+.top p{margin:4px 0 0;color:var(--dim);max-width:60ch}
+.clock{font-variant-numeric:tabular-nums;color:var(--dim);font-size:14px;white-space:nowrap}
+.rows{max-width:1240px;margin:0 auto;display:grid;gap:6px}
+.row{display:grid;grid-template-columns:3.2em minmax(0,13em) minmax(0,1fr) minmax(0,16em);gap:18px;align-items:center;width:100%;text-align:left;font:inherit;color:inherit;background:rgba(255,255,255,.04);border:1px solid transparent;border-radius:8px;padding:14px 18px;cursor:pointer;min-height:44px}
+.row:hover{background:rgba(255,255,255,.08)}
+.row:focus-visible,.row.sel{outline:none;border-color:rgba(242,237,227,.55);background:rgba(255,255,255,.1)}
+.row.live .num{background:var(--acc);color:#fff}
+.num{font-weight:600;font-variant-numeric:tabular-nums;border:1px solid rgba(242,237,227,.3);border-radius:4px;text-align:center;padding:2px 0}
+.cname{font-weight:600}
+.cname small{display:block;font-weight:400;color:var(--dim);font-size:13px}
+.now,.now>span,.cname,.next{display:block;overflow:hidden}
+.now .w{font-size:21px;line-height:1.2;font-family:"Cormorant Garamond",Georgia,serif;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.now .p{font-size:13px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar{height:3px;background:rgba(255,255,255,.14);border-radius:2px;margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ink)}
+.next{font-size:13px;color:var(--dim);overflow:hidden}
+.next span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.keys{max-width:1240px;margin:22px auto 0;color:var(--dim);font-size:13px;display:flex;flex-wrap:wrap;gap:6px 20px}
+kbd{font:inherit;border:1px solid rgba(242,237,227,.3);border-radius:3px;padding:0 5px;color:var(--ink)}
+.foot{max-width:1240px;margin:16px auto 0;color:var(--dim);font-size:13px}
+.foot a{color:var(--ink)}
+button.fs{font:inherit;font-size:14px;color:var(--ink);background:transparent;border:1px solid rgba(242,237,227,.4);border-radius:6px;padding:10px 16px;cursor:pointer;min-height:44px}
+button.fs:focus-visible{outline:2px solid var(--ink)}
+#toast{position:fixed;left:50%;top:24px;transform:translateX(-50%);z-index:5;background:var(--glass);padding:8px 16px;border-radius:6px;font-size:14px;opacity:0;transition:opacity .4s;pointer-events:none}
+#toast.on{opacity:1}
+#sound{position:fixed;left:50%;bottom:max(28px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;font:inherit;font-size:14px;color:var(--ink);background:var(--glass);border:1px solid rgba(242,237,227,.25);border-radius:999px;padding:12px 20px;min-height:44px;cursor:pointer;white-space:nowrap}
+body.tap #stage iframe{pointer-events:auto}
+body.tap #hit{pointer-events:none}
+#sound[hidden]{display:none}
+@media(max-width:760px){.row{grid-template-columns:2.6em minmax(0,1fr);gap:8px 12px}.row .now,.row .next{grid-column:2}.next{display:none}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="stage"><div id="player"></div></div>
+<div id="hit" aria-hidden="true"></div>
+<div id="bug" hidden><b id="bugNum"></b><span id="bugName"></span></div>
+<div id="lower"><div class="ch" id="lCh"></div><div class="work serif" id="lWork"></div><div class="who" id="lWho"></div><div class="ctl"><button id="muteBtn" type="button">Mute</button><button id="guideBtn" type="button">Guide</button></div></div>
+<div id="toast"></div>
+<button id="sound" type="button" hidden>Not playing? Tap the video to start it · open guide</button>
+<section id="guide" class="on" aria-label="Channel guide">
+  <div class="top">
+    <div>
+      <h1 class="serif">Bach, around the clock</h1>
+      <p>Each channel runs on a fixed broadcast clock. Tune in and you join whatever is playing, at the point it has reached.</p>
+    </div>
+    <div style="display:flex;gap:16px;align-items:center"><span class="clock" id="clock"></span><button class="fs" id="fsBtn" type="button">Full screen</button></div>
+  </div>
+  <div class="rows" id="rows" role="list"></div>
+  <div class="keys touch-only"><span>Tap: what's playing, with Mute</span><span>Two-finger tap: this guide</span><span>Swipe left or right: change channel</span></div>
+  <div class="keys key-only"><span><kbd>↑</kbd><kbd>↓</kbd> choose</span><span><kbd>Enter</kbd> tune in</span><span><kbd>←</kbd><kbd>→</kbd> or <kbd>1</kbd>–<kbd>8</kbd> change channel</span><span><kbd>G</kbd> or click: guide</span><span><kbd>I</kbd> what's on</span><span><kbd>F</kbd> full screen</span><span><kbd>M</kbd> mute</span></div>
+  <p class="foot">Performances by the Netherlands Bach Society, from their free <a href="https://www.bachvereniging.nl/en/allofbach">All of Bach</a> project, played through YouTube. Catalogue snapshot: __SNAPSHOT__.</p>
+</section>
+<script>
+const V=__VIDEOS__;
+const CH=__CHANNELS__;
+</script>
+<script>
+{
+const EPOCH=Date.UTC(2026,0,1)/1000, now=()=>Date.now()/1000;
+const $=id=>document.getElementById(id);
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const bad=new Set();
+// ---------- titles ----------
+function parse(t){const p=t.split(' - ');if(p.length>=3)return{work:p.slice(1,-1).join(' – '),who:p[p.length-1]};if(p.length===2)return{work:p[1],who:''};return{work:t,who:''}}
+// ---------- schedule ----------
+function hash(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const cache={};
+function order(c,cyc){const k=c.key+':'+cyc;if(cache[k])return cache[k];const r=rng(hash(k)),a=c.items.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return cache[k]=a}
+CH.forEach(c=>c.total=c.items.reduce((s,i)=>s+V[i][1],0));
+function at(c,t){const el=t-EPOCH,cyc=Math.floor(el/c.total);let pos=el-cyc*c.total;const o=order(c,cyc);for(let k=0;k<o.length;k++){const d=V[o[k]][1];if(pos<d)return{cyc,k,v:o[k],off:pos,left:d-pos};pos-=d}return{cyc,k:0,v:o[0],off:0,left:V[o[0]][1]}}
+function after(c,s){let k=s.k+1,cyc=s.cyc;const o=order(c,cyc);if(k>=o.length){k=0;cyc++}return{cyc,k,v:order(c,cyc)[k],off:0}}
+// ---------- player ----------
+let player,ready=false,cur=null,chi=-1,sel=0,lowerT,toastT;
+window.onYouTubeIframeAPIReady=()=>{player=new YT.Player('player',{playerVars:{autoplay:1,controls:0,rel:0,playsinline:1,iv_load_policy:3,disablekb:1,fs:0,cc_load_policy:0,origin:location.origin},events:{onReady:()=>{ready=true;if(pending!==null){const p=pending;pending=null;tune(p)}},onStateChange:e=>{if(e.data===YT.PlayerState.ENDED)advance();if(e.data===YT.PlayerState.PLAYING){tapMode(false);syncSoon();if(cur&&!cur.shown){cur.shown=true;showLower()}}},onError:()=>{if(cur){bad.add(cur.v);advance(true)}}}})};
+let pending=null;
+function play(s){let tries=0;const c=CH[chi];while(bad.has(s.v)&&tries++<c.items.length)s=after(c,s);cur={...s,shown:false};const off=s.off<20?0:Math.floor(s.off);player.loadVideoById({videoId:V[s.v][0],startSeconds:off});paintBug();paint();watch()}
+// If nothing is playing after a few seconds (autoplay blocked, or an ad waiting), let taps reach YouTube's own player.
+let watchT,needSound=false;
+function watch(){clearTimeout(watchT);watchT=setTimeout(()=>{const st=player.getPlayerState();if(st!==1&&st!==3)tapMode(true)},4000)}
+function tapMode(on){needSound=false;document.body.classList.toggle('tap',on);$('sound').hidden=!on}
+function soundOn(){player.unMute();if(player.getPlayerState()!==1)player.playVideo();tapMode(false)}
+// Keep every device on the broadcast clock: after ads, tap-to-start, pauses or a backgrounded app,
+// the player can start late or from 0:00 (iOS sometimes ignores startSeconds). Check and jump back on schedule.
+let syncT;
+function syncSoon(){clearTimeout(syncT);syncT=setTimeout(sync,1200)}
+function sync(){if(!cur||chi<0||!player||player.getPlayerState()!==1)return;const c=CH[chi],s=at(c,now()),pos=player.getCurrentTime()||0;
+  if(s.v===cur.v){const target=s.off<20?0:s.off;if(Math.abs(pos-target)>6&&!(s.off<20&&pos<s.off+6)){player.seekTo(target,true)}return}
+  // the schedule has moved on to a later piece: join it, unless this one is nearly over anyway
+  // (if the clock is still on the previous piece because this one began a little early, leave it alone)
+  const ahead=s.cyc>cur.cyc||(s.cyc===cur.cyc&&s.k>cur.k);
+  if(ahead&&V[cur.v][1]-pos>15)play(s)}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncSoon()});
+window.addEventListener('pageshow',()=>syncSoon());
+function tune(i){i=(i+CH.length)%CH.length;if(!ready){pending=i;return}chi=i;store.set('bach247.ch',String(i));play(at(CH[i],now()))}
+function advance(skip){const c=CH[chi];const s=at(c,now());play(!skip&&s.v!==cur.v?s:after(c,cur))}
+function paintBug(){const c=CH[chi];$('bug').hidden=false;$('bugNum').textContent=chi+1;$('bugName').textContent=c.name}
+function showLower(){if(!cur)return;const t=parse(V[cur.v][2]);$('lCh').textContent=(chi+1)+'  '+CH[chi].name;$('lWork').textContent=t.work;$('lWho').textContent=t.who?t.who+' · Netherlands Bach Society':'Netherlands Bach Society';paintMute();$('lower').classList.add('on');$('bug').style.opacity=1;clearTimeout(lowerT);lowerT=setTimeout(hideLower,9000)}
+function hideLower(){clearTimeout(lowerT);$('lower').classList.remove('on');$('bug').style.opacity='';if($('lower').contains(document.activeElement))document.activeElement.blur()}
+function paintMute(){const m=player&&player.isMuted&&player.isMuted();$('muteBtn').textContent=m?'Sound on':'Mute';$('muteBtn').classList.toggle('on',!!m)}
+function toggleMute(){if(!player||!player.isMuted)return;if(player.isMuted()){player.unMute();toast('Sound on')}else{player.mute();toast('Muted')}setTimeout(paintMute,150)}
+function toast(m){$('toast').textContent=m;$('toast').classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>$('toast').classList.remove('on'),1600)}
+// ---------- guide ----------
+const fmt=s=>{s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?h+' h '+m+' min':m?m+' min':'<1 min'};
+const hrs=c=>Math.round(c.total/3600);
+$('rows').innerHTML=CH.map((c,i)=>`<button class="row" role="listitem" data-i="${i}" type="button"><span class="num">${i+1}</span><span class="cname">${c.name}<small>${c.items.length} recordings · ${hrs(c)} h</small></span><span class="now"><span class="w"></span><span class="p"></span><span class="bar"><i></i></span></span><span class="next">Next<span></span></span></button>`).join('');
+const rowEls=[...document.querySelectorAll('.row')];
+function paint(){const t=now();rowEls.forEach((r,i)=>{const c=CH[i];let s=at(c,t);if(i===chi&&cur&&player&&player.getCurrentTime){const d=V[cur.v][1],p=player.getCurrentTime()||0;s={...cur,off:p,left:d-p}}const v=V[s.v],tt=parse(v[2]),n=parse(V[after(c,s).v][2]);r.querySelector('.w').textContent=tt.work;r.querySelector('.p').textContent=(tt.who?tt.who+' · ':'')+fmt(s.left)+' left';r.querySelector('.bar i').style.width=Math.min(100,100*s.off/v[1])+'%';r.querySelector('.next span').textContent=n.work;r.classList.toggle('live',i===chi);r.classList.toggle('sel',i===sel)});$('clock').textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}
+setInterval(()=>{if($('guide').classList.contains('on'))paint()},1000);
+function guide(on){$('guide').classList.toggle('on',on);if(on){sel=chi<0?sel:chi;paint();rowEls[sel].focus({preventScroll:false})}}
+rowEls.forEach(r=>r.addEventListener('click',()=>{tune(+r.dataset.i);guide(false)}));
+// mouse: click the picture for the guide
+$('hit').addEventListener('click',()=>guide(true));
+$('sound').addEventListener('click',e=>{e.stopPropagation();guide(true)});
+$('muteBtn').addEventListener('click',e=>{e.stopPropagation();toggleMute();showLower()});
+$('guideBtn').addEventListener('click',e=>{e.stopPropagation();hideLower();guide(true)});
+// touch: one-finger tap = what's playing (with Mute), two-finger tap = guide, swipe = change channel
+let t0=null,maxT=0;
+$('hit').addEventListener('touchstart',e=>{if(e.touches.length===e.changedTouches.length){t0={x:e.touches[0].clientX,y:e.touches[0].clientY,t:Date.now()};maxT=0}maxT=Math.max(maxT,e.touches.length)},{passive:true});
+$('hit').addEventListener('touchend',e=>{if(e.touches.length||!t0)return;e.preventDefault();const p=e.changedTouches[0],dx=p.clientX-t0.x,dy=p.clientY-t0.y,n=maxT;t0=null;
+  if(chi<0||n>=2){hideLower();guide(true);return}
+  if(Math.abs(dx)>60&&Math.abs(dx)>1.5*Math.abs(dy)){tune(chi+(dx<0?1:-1));return}
+  if(Math.abs(dx)<20&&Math.abs(dy)<20){$('lower').classList.contains('on')?hideLower():showLower()}});
+$('hit').addEventListener('touchcancel',()=>{t0=null});
+$('guide').addEventListener('click',e=>{if(e.target.id==='guide'&&chi>=0)guide(false)});
+function fullscreen(){const d=document,el=d.documentElement;try{if(d.fullscreenElement||d.webkitFullscreenElement){(d.exitFullscreen||d.webkitExitFullscreen).call(d)}else{const p=(el.requestFullscreen||el.webkitRequestFullscreen).call(el);if(p&&p.catch)p.catch(()=>toast('Full screen is not available here'))}}catch(e){toast('Full screen is not available here')}}
+$('fsBtn').addEventListener('click',fullscreen);
+{const el=document.documentElement;if(!(el.requestFullscreen||el.webkitRequestFullscreen)||matchMedia('(display-mode: standalone)').matches||navigator.standalone)$('fsBtn').hidden=true}
+document.addEventListener('keydown',e=>{const g=$('guide').classList.contains('on'),k=e.key;
+  if(g&&(k==='ArrowDown'||k==='ArrowUp')){e.preventDefault();sel=(sel+(k==='ArrowDown'?1:-1)+CH.length)%CH.length;paint();rowEls[sel].focus();return}
+  if(k>='1'&&k<=String(CH.length)){tune(+k-1);guide(false);return}
+  if(!g&&(k==='ArrowRight'||k==='ArrowLeft'||k==='ChannelUp'||k==='ChannelDown')){e.preventDefault();tune(chi+(k==='ArrowRight'||k==='ChannelUp'?1:-1));return}
+  if(k==='Escape'){if(g&&chi>=0)guide(false);return}
+  if(k==='g'||k==='G'){if(!g||chi>=0)guide(!g);return}
+  if(k==='i'||k==='I'){showLower();return}
+  if(k==='f'||k==='F'){fullscreen();return}
+  if((k==='m'||k==='M')&&player){toggleMute();return}
+  if(k===' '&&!g&&player){e.preventDefault();const st=player.getPlayerState();if(st===1){player.pauseVideo();toast('Paused')}else{player.playVideo();toast('Playing')}}
+});
+let idleT;document.addEventListener('mousemove',()=>{document.body.classList.remove('idle');clearTimeout(idleT);idleT=setTimeout(()=>document.body.classList.add('idle'),3000)});
+const last=parseInt(store.get('bach247.ch'),10);sel=Number.isInteger(last)&&last>=0&&last<CH.length?last:0;
+if(location.protocol==='file:'){document.querySelector('.top p').textContent='YouTube will not play from a file opened directly. Serve this folder over http (see the README) and open it from that address.'}
+paint();rowEls[sel].focus();
+const s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';document.body.appendChild(s);
+}
+</script>
+</body>
+</html>
