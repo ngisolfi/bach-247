@@ -64,7 +64,9 @@ button.fs{font:inherit;font-size:14px;color:var(--ink);background:transparent;bo
 button.fs:focus-visible{outline:2px solid var(--ink)}
 #toast{position:fixed;left:50%;top:24px;transform:translateX(-50%);z-index:5;background:var(--glass);padding:8px 16px;border-radius:6px;font-size:14px;opacity:0;transition:opacity .4s;pointer-events:none}
 #toast.on{opacity:1}
-#sound{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;font:inherit;font-size:18px;color:#fff;background:var(--acc);border:0;border-radius:8px;padding:16px 26px;cursor:pointer;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+#sound{position:fixed;left:50%;bottom:max(28px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;font:inherit;font-size:14px;color:var(--ink);background:var(--glass);border:1px solid rgba(242,237,227,.25);border-radius:999px;padding:12px 20px;min-height:44px;cursor:pointer;white-space:nowrap}
+body.tap #stage iframe{pointer-events:auto}
+body.tap #hit{pointer-events:none}
 #sound[hidden]{display:none}
 @media(max-width:760px){.row{grid-template-columns:2.6em minmax(0,1fr);gap:8px 12px}.row .now,.row .next{grid-column:2}.next{display:none}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -76,7 +78,7 @@ button.fs:focus-visible{outline:2px solid var(--ink)}
 <div id="bug" hidden><b id="bugNum"></b><span id="bugName"></span></div>
 <div id="lower"><div class="ch" id="lCh"></div><div class="work serif" id="lWork"></div><div class="who" id="lWho"></div></div>
 <div id="toast"></div>
-<button id="sound" type="button" hidden>Sound is off. Click anywhere or press M to turn it on</button>
+<button id="sound" type="button" hidden>Not playing? Tap the video to start it · open guide</button>
 <section id="guide" class="on" aria-label="Channel guide">
   <div class="top">
     <div>
@@ -111,13 +113,15 @@ function at(c,t){const el=t-EPOCH,cyc=Math.floor(el/c.total);let pos=el-cyc*c.to
 function after(c,s){let k=s.k+1,cyc=s.cyc;const o=order(c,cyc);if(k>=o.length){k=0;cyc++}return{cyc,k,v:order(c,cyc)[k],off:0}}
 // ---------- player ----------
 let player,ready=false,cur=null,chi=-1,sel=0,lowerT,toastT;
-window.onYouTubeIframeAPIReady=()=>{player=new YT.Player('player',{playerVars:{autoplay:1,controls:0,rel:0,playsinline:1,iv_load_policy:3,disablekb:1,fs:0,cc_load_policy:0,origin:location.origin},events:{onReady:()=>{ready=true;if(pending!==null){const p=pending;pending=null;tune(p)}},onStateChange:e=>{if(e.data===YT.PlayerState.ENDED)advance();if(e.data===YT.PlayerState.PLAYING&&cur&&!cur.shown){cur.shown=true;showLower()}},onError:()=>{if(cur){bad.add(cur.v);advance(true)}}}})};
+window.onYouTubeIframeAPIReady=()=>{player=new YT.Player('player',{playerVars:{autoplay:1,controls:0,rel:0,playsinline:1,iv_load_policy:3,disablekb:1,fs:0,cc_load_policy:0,origin:location.origin},events:{onReady:()=>{ready=true;if(pending!==null){const p=pending;pending=null;tune(p)}},onStateChange:e=>{if(e.data===YT.PlayerState.ENDED)advance();if(e.data===YT.PlayerState.PLAYING){tapMode(false);if(cur&&!cur.shown){cur.shown=true;showLower()}}},onError:()=>{if(cur){bad.add(cur.v);advance(true)}}}})};
 let pending=null;
 function play(s){let tries=0;const c=CH[chi];while(bad.has(s.v)&&tries++<c.items.length)s=after(c,s);cur={...s,shown:false};const off=s.off<20?0:Math.floor(s.off);player.loadVideoById({videoId:V[s.v][0],startSeconds:off});paintBug();paint();watch()}
 // Safari blocks autoplay with sound in embedded players: fall back to muted playback and offer sound on the next click.
+// If nothing is playing after a few seconds (autoplay blocked, or an ad waiting), let taps reach YouTube's own player.
 let watchT,needSound=false;
-function watch(){clearTimeout(watchT);watchT=setTimeout(()=>{const st=player.getPlayerState();if(st!==1&&st!==3){player.mute();player.playVideo();needSound=true;$('sound').hidden=false}},3500)}
-function soundOn(){player.unMute();player.setVolume(100);if(player.getPlayerState()!==1)player.playVideo();needSound=false;$('sound').hidden=true}
+function watch(){clearTimeout(watchT);watchT=setTimeout(()=>{const st=player.getPlayerState();if(st!==1&&st!==3)tapMode(true)},4000)}
+function tapMode(on){needSound=false;document.body.classList.toggle('tap',on);$('sound').hidden=!on}
+function soundOn(){player.unMute();if(player.getPlayerState()!==1)player.playVideo();tapMode(false)}
 function tune(i){i=(i+CH.length)%CH.length;if(!ready){pending=i;return}chi=i;store.set('bach247.ch',String(i));play(at(CH[i],now()))}
 function advance(skip){const c=CH[chi];const s=at(c,now());play(!skip&&s.v!==cur.v?s:after(c,cur))}
 function paintBug(){const c=CH[chi];$('bug').hidden=false;$('bugNum').textContent=chi+1;$('bugName').textContent=c.name}
@@ -133,7 +137,7 @@ setInterval(()=>{if($('guide').classList.contains('on'))paint()},1000);
 function guide(on){$('guide').classList.toggle('on',on);if(on){sel=chi<0?sel:chi;paint();rowEls[sel].focus({preventScroll:false})}}
 rowEls.forEach(r=>r.addEventListener('click',()=>{tune(+r.dataset.i);guide(false)}));
 $('hit').addEventListener('click',()=>{if(needSound)soundOn();else guide(true)});
-$('sound').addEventListener('click',e=>{e.stopPropagation();soundOn()});
+$('sound').addEventListener('click',e=>{e.stopPropagation();guide(true)});
 // phone: swipe left/right on the picture to change channel
 let tx=null,ty=null;
 $('hit').addEventListener('touchstart',e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY},{passive:true});
